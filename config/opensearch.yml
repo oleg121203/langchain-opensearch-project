@@ -1,2 +1,9 @@
+cluster.name: opensearch-cluster
+node.name: opensearch-node1
 discovery.type: single-node
-plugins.security.disabled: true
+network.host: 0.0.0.0
+
+# Налаштування безпеки
+plugins.security.ssl.http.enabled: false
+plugins.security.disabled: false
+plugins.security.allow_default_init_securityindex: true

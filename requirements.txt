@@ -1,15 +1,27 @@
-fastapi>=0.68.0,<0.69.0
-uvicorn>=0.15.0,<0.16.0
+# Web Framework та його залежності
+fastapi>=0.100.0  # Версия с поддержкой pydantic v2
+uvicorn>=0.15.0
+httpx>=0.24.0
+
+# LangChain та його компоненти
 langchain>=0.0.340
 langchain-community>=0.0.10
 opensearch-py>=2.4.0
 ollama>=0.1.4
-python-dotenv>=1.0.0
+
+# Кешування та бази даних
 redis>=5.0.1
+
+# Утиліти та інструменти
+python-dotenv>=1.0.0
 tenacity>=8.2.3
 prometheus-client>=0.19.0
 python-json-logger>=2.0.7
-pydantic>=1.8.0,<2.0.0
-httpx>=0.24.0
+
+# Валідація даних
+pydantic>=2.7.0  # Используем pydantic v2
+pydantic-settings>=2.7.1
+
+# Тестування
 pytest>=7.0.0
 pytest-asyncio>=0.21.0

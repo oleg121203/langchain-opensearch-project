@@ -22,6 +22,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Налаштування локалізації
+ENV LANG=uk_UA.UTF-8 \
+    LANGUAGE=uk_UA:uk \
+    LC_ALL=uk_UA.UTF-8
+
+RUN apt-get update && apt-get install -y locales && \
+    sed -i -e 's/# uk_UA.UTF-8 UTF-8/uk_UA.UTF-8 UTF-8/' /etc/locale.gen && \
+    dpkg-reconfigure --frontend=noninteractive locales
+
 # Створення непривілейованого користувача
 RUN useradd -m -u 1000 appuser
 

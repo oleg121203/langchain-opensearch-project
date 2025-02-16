@@ -1,21 +1,29 @@
+# Стандартні бібліотеки
 import os
 import logging
 import json
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+
+# Логування та моніторинг
 from logging.handlers import RotatingFileHandler
 from pythonjsonlogger import jsonlogger
+from prometheus_client import start_http_server, Counter, Histogram
+
+# Web Framework
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from langchain_community.vectorstores import OpenSearch
-from langchain.embeddings import OllamaEmbeddings
+# LangChain та його компоненти
+from langchain_community.vectorstores import OpenSearchVectorSearch
+from langchain_community.embeddings import OllamaEmbeddings
 from langchain.cache import RedisCache
-import langchain
-import redis
+from langchain.globals import set_llm_cache
+
+# Кешування та утиліти
+from redis import Redis
 import tenacity
-from prometheus_client import start_http_server, Counter, Histogram
 from dotenv import load_dotenv
 
 # Завантаження змінних середовища
@@ -56,34 +64,24 @@ CACHE_HITS = Counter(
 app = FastAPI(title="LangChain Search API")
 
 # Налаштування Redis кешу
-redis_client = redis.Redis.from_url(
-    os.getenv("REDIS_URL", "redis://redis:6379/0"),
-    decode_responses=True
-)
-langchain.llm_cache = RedisCache(redis_client)
-
-# Налаштування OpenSearch
-vectorstore = OpenSearch(
-    index_name="customs_declarations-*",
-    opensearch_url=os.getenv("OPENSEARCH_HOST", "http://opensearch:9200"),
-    http_auth=(
-        os.getenv("OPENSEARCH_USERNAME", "admin"),
-        os.getenv("OPENSEARCH_PASSWORD", "admin")
-    ),
-    use_ssl=False,
-    verify_certs=False,
-    ssl_assert_hostname=False,
-    ssl_show_warn=False
-)
+redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
+set_llm_cache(RedisCache(redis_client))
 
 # Ініціалізація Ollama з оптимізованими налаштуваннями для M1
 embeddings = OllamaEmbeddings(
     model="tulu3",
     base_url=os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434"),
-    temperature=0.3,
-    timeout=30,
-    retry_on_timeout=True,
-    cache=True
+    temperature=0.3
+)
+
+# Налаштування OpenSearch
+vectorstore = OpenSearchVectorSearch(
+    index_name="customs_declarations-*",
+    embedding_function=embeddings,
+    opensearch_url=os.getenv("OPENSEARCH_HOST", "http://opensearch:9200"),
+    http_auth=("admin", os.getenv("OPENSEARCH_PASSWORD", "Dima1203@")),
+    use_ssl=False,
+    verify_certs=False
 )
 
 class SearchQuery(BaseModel):
