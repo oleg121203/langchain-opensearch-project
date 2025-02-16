@@ -22,6 +22,79 @@ services:
           memory: 8G
         reservations:
           memory: 6G
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --save 60 1 --loglevel warning --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - langchain-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  logstash:
+    image: opensearchproject/logstash-oss-with-opensearch-output-plugin:7.16.2
+    container_name: logstash
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./config/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ./config/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./csv_data:/usr/share/logstash/data
+      - ./logs/logstash:/usr/share/logstash/logs
+    environment:
+      - LS_JAVA_OPTS=-Xmx4g -Xms4g
+    networks:
+      - langchain-network
+    deploy:
+      resources:
+        limits:
+          memory: 5G
+
+  langchain:
+    build: .
+    container_name: langchain
+    ports:
+      - "5000:5000"
+    environment:
+      - OPENSEARCH_HOST=http://opensearch:9200
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OPENSEARCH_USERNAME=admin
+      - OPENSEARCH_PASSWORD=YourStrongPassword123!
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./logs/langchain:/app/logs
+    networks:
+      - langchain-network
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
 
 networks:
   langchain-network:
@@ -29,3 +102,4 @@ networks:
 
 volumes:
   opensearch-data:
+  redis-data:
