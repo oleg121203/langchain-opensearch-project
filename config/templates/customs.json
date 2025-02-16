@@ -1,0 +1,79 @@
+{
+    "index_patterns": ["customs_declarations-*"],
+    "template": {
+      "settings": {
+        "number_of_shards": 3,
+        "number_of_replicas": 0,
+        "index.refresh_interval": "30s",
+        "index.mapping.total_fields.limit": 2000,
+        "index.mapping.ignore_malformed": true,
+        "index.routing.allocation.total_shards_per_node": 2,
+        "analysis": {
+          "analyzer": {
+            "custom_analyzer": {
+              "type": "custom",
+              "tokenizer": "standard",
+              "filter": [
+                "lowercase",
+                "asciifolding"
+              ]
+            }
+          }
+        }
+      },
+      "mappings": {
+        "dynamic": "strict",
+        "properties": {
+          "Номер митної декларації": { 
+            "type": "keyword"
+          },
+          "Дата оформлення": {
+            "type": "date",
+            "format": "dd.MM.yy||strict_date_optional_time"
+          },
+          "Кількість": {
+            "type": "integer"
+          },
+          "Маса, брутто, кг": {
+            "type": "float"
+          },
+          "Маса, нетто, кг": {
+            "type": "float"
+          },
+          "Фактурна варість, валюта контракту": {
+            "type": "float"
+          },
+          "vector_embedding": {
+            "type": "dense_vector",
+            "dims": 768
+          },
+          "Опис товару": {
+            "type": "text",
+            "analyzer": "custom_analyzer"
+          },
+          "Код товару": {
+            "type": "keyword"
+          },
+          "Країна походження": {
+            "type": "keyword"
+          },
+          "Відправник": {
+            "type": "text",
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "Одержувач": {
+            "type": "text",
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          }
+        }
+      }
+    }
+  }

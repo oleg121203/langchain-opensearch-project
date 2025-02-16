@@ -1,0 +1,31 @@
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2
+    platform: linux/arm64
+    container_name: opensearch
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms6g -Xmx6g"
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - ./config/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+      - opensearch-data:/usr/share/opensearch/data
+    networks:
+      - langchain-network
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 6G
+
+networks:
+  langchain-network:
+    driver: bridge
+
+volumes:
+  opensearch-data:
