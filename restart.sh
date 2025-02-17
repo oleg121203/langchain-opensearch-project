@@ -118,13 +118,15 @@ setup_scripts_permissions() {
         "setup.sh"
         "setup-security.sh"
         "generate-certs.sh"
+        "init-security.sh"
+        "fix-permissions.sh"
         "scripts/backup.sh"
         "scripts/health_check.sh"
         "scripts/setup.sh"
     )
     
     for script in "${SCRIPTS[@]}"; do
-        if [ -ф "$script" ]; то
+        if [ -f "$script" ]; then  # Исправлено с -ф на -f
             chmod +x "$script"
             log "✅ Установлены права на $script"
         else
@@ -139,37 +141,76 @@ setup_scripts_permissions() {
 setup_certs_permissions() {
     log "🔑 Настройка прав доступа к сертификатам..."
     
-    # Удаление старой директории сертификатов
-    if [ -д "config/certs" ]; то
+    if [ -d "config/certs" ]; then  # Исправлено с -д на -d
         log "Удаление существующей директории сертификатов..."
         sudo rm -rf config/certs
     fi
     
-    # Создание новой директории и установка прав
-    log "Создание новой директории сертификатов..."
     mkdir -p config/certs
-    sudo chmod -R 755 config/certs
-    
+    chmod 755 config/certs
     check_status "Настройка прав доступа к сертификатам"
 }
 
-# Добавляем функцию проверки кластера
+# Исправляем функцию проверки кластера
 check_cluster_health() {
     log "🔍 Проверка здоровья кластера..."
-    for i in {1..30}; do
+    for i in {1..60}; do
         local health=$(curl -s -k -u admin:Dima1203@ https://localhost:9200/_cluster/health)
         if [[ $health == *'"status":"green"'* ]] || [[ $health == *'"status":"yellow"'* ]]; then
             log "✅ Кластер OpenSearch работает нормально"
             return 0
         fi
-        log "⏳ Ожидание готовности кластера... ($i/30)"
-        sleep 5
-    done
+        log "⏳ Ожидание готовности кластера... ($i/60)"
+        sleep 10
+    done  # Исправлено 'end' на 'done'
     log "❌ Кластер OpenSearch не готов"
     return 1
 }
 
-case $COMMAND в
+# Добавляем функцию проверки сети
+check_network() {
+    log "🌐 Перевірка мережі..."
+    if docker network inspect langchain-network >/dev/null 2>&1; then
+        log "Видалення існуючої мережі..."
+        docker network rm langchain-network 2>/dev/null || true
+    fi
+    check_status "Перевірка мережі"
+}
+
+# Добавляем функцию проверки логов OpenSearch
+check_opensearch_logs() {
+    log "📋 Проверка логов OpenSearch..."
+    log "=== Логи opensearch-node1 ==="
+    docker-compose logs opensearch-node1 | tail -n 50
+    log "=== Логи opensearch-node2 ==="
+    docker-compose logs opensearch-node2 | tail -n 50
+}
+
+# Добавляем функцию для запуска init-security.sh
+run_init_security() {
+    log "🔐 Инициализация безопасности OpenSearch..."
+    if [ -f "init-security.sh" ]; then
+        chmod +x init-security.sh
+        ./init-security.sh
+        check_status "Инициализация безопасности"
+    else
+        log "⚠️ Файл init-security.sh не найден"
+    fi
+}
+
+# Добавляем функцию для запуска fix-permissions.sh
+run_fix_permissions() {
+    log "📝 Исправление прав доступа..."
+    if [ -f "fix-permissions.sh" ]; then
+        chmod +x fix-permissions.sh
+        ./fix-permissions.sh
+        check_status "Исправление прав доступа"
+    else
+        log "⚠️ Файл fix-permissions.sh не найден"
+    fi
+}
+
+case $COMMAND in
     start)
         log "Запуск сервісів: $SERVICES"
         setup_scripts_permissions
@@ -201,6 +242,8 @@ case $COMMAND в
         setup_scripts_permissions
         docker-compose down
         setup_certificates
+        run_fix_permissions
+        run_init_security
         docker-compose build --no-cache $SERVICES
         docker-compose up -d $SERVICES
         setup_permissions
@@ -209,43 +252,36 @@ case $COMMAND в
     clean)
         log "🧹 Повне очищення та перезапуск системи..."
         
-        # Установка прав на скрипты
-        setup_scripts_permissions
+        # Останавливаем все контейнеры
+        docker-compose down --remove-orphans
+        sleep 5
         
-        # Настройка прав для сертификатов
-        setup_certs_permissions
-        
-        # Зупинка всіх контейнерів
-        log "Зупинка всіх контейнерів..."
-        docker-compose down -v
-        check_status "Зупинка контейнерів"
-        
-        # Генерация сертификатов
-        setup_certificates
-        
-        # Добавляем паузу после генерации сертификатов
-        sleep 2
-        
-        # Видалення всіх томів
-        log "Видалення томів..."
+        # Очищаем volumes
         docker volume rm $(docker volume ls -q | grep 'langchain-opensearch-project') 2>/dev/null || true
         
-        # Очищення кешу Docker
-        log "Очищення кешу Docker..."
-        docker system prune -f
+        # Настройка окружения
+        setup_scripts_permissions
+        setup_certs_permissions
+        setup_certificates
         
-        # Перезбірка всіх образів
-        log "Перезбірка всіх образів..."
-        docker-compose build --no-cache
-        check_status "Перезбірка образів"
-        
-        # Запуск системи
-        log "Запуск системи..."
+        # Запускаем контейнеры
+        log "🚀 Запуск системи..."
         docker-compose up -d
-        setup_permissions
-        check_cluster_health
-        check_status "Запуск системи"
+        sleep 30  # Увеличиваем время ожидания
         
+        # Теперь можно исправлять права
+        run_fix_permissions
+        run_init_security
+        
+        if ! check_cluster_health; then
+            check_opensearch_logs
+            log "🔄 Пробуем перезапустить ноды..."
+            docker-compose restart opensearch-node1 opensearch-node2
+            sleep 30
+            check_cluster_health
+        fi
+        
+        log "📊 Статус системи:"
         docker-compose ps
         ;;
     *)

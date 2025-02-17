@@ -4,28 +4,34 @@ services:
   opensearch-node1:
     image: opensearchproject/opensearch:2
     platform: linux/arm64
-    container_name: opensearch
+    container_name: opensearch-node1
     environment:
-      - discovery.type=single-node
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-      - bootstrap.memory_lock=true
-      - DISABLE_INSTALL_DEMO_CONFIG=true
-      - DISABLE_SECURITY_PLUGIN=false
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Dima1203@
       - cluster.name=opensearch-cluster
       - node.name=opensearch-node1
-      - discovery.seed_hosts=opensearch-node1,opensearch-node2
-      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+      - DISABLE_SECURITY_PLUGIN=false
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Dima1203@
+      - JAVA_OPTS=-Djava.security.egd=file:/dev/urandom -Dcom.sun.jndi.ldap.object.trustURLCodebase=false
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - discovery.type=single-node
+      - plugins.security.ssl.transport.enforce_hostname_verification=false
+      - plugins.security.allow_unsafe_democertificates=true
+      - plugins.security.allow_default_init_securityindex=true
     ulimits:
       memlock:
         soft: -1
         hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
       - ./config/opensearch-node1.yml:/usr/share/opensearch/config/opensearch.yml:rw
       - ./config/certs:/usr/share/opensearch/config/certs:rw
+      - opensearch-data1:/usr/share/opensearch/data
       - ./config/sqlformat.json:/usr/share/opensearch/config/sqlformat.json:ro
-      - opensearch-data:/usr/share/opensearch/data
       - ./config/templates:/usr/share/opensearch/config/templates:ro
+      - ./config/internal_users.yml:/usr/share/opensearch/config/opensearch-security/internal_users.yml:ro
     ports:
       - "9200:9200"
       - "9600:9600"
@@ -39,10 +45,10 @@ services:
           memory: 6G
     healthcheck:
       test: ["CMD-SHELL", "curl -s -k -u admin:Dima1203@ https://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
+      interval: 20s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
 
   opensearch-node2:
     image: opensearchproject/opensearch:2
@@ -52,15 +58,24 @@ services:
       - ./config/opensearch-node2.yml:/usr/share/opensearch/config/opensearch.yml:rw
       - ./config/certs:/usr/share/opensearch/config/certs:rw
       - opensearch-data2:/usr/share/opensearch/data
+      - ./config/internal_users.yml:/usr/share/opensearch/config/opensearch-security/internal_users.yml:ro
     environment:
       - cluster.name=opensearch-cluster
       - node.name=opensearch-node2
-      - discovery.seed_hosts=opensearch-node1,opensearch-node2
-      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2
       - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
       - DISABLE_SECURITY_PLUGIN=false
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Dima1203@
+      - JAVA_OPTS=-Djava.security.egd=file:/dev/urandom -Dcom.sun.jndi.ldap.object.trustURLCodebase=false
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - discovery.type=single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     networks:
       - langchain-network
     deploy:
@@ -71,10 +86,10 @@ services:
           memory: 6G
     healthcheck:
       test: ["CMD-SHELL", "curl -s -k -u admin:Dima1203@ https://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
+      interval: 20s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
 
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:2
@@ -149,7 +164,7 @@ services:
       - LANG=uk_UA.UTF-8
       - LANGUAGE=uk_UA:uk
       - LC_ALL=uk_UA.UTF-8
-      - OPENSEARCH_HOST=https://opensearch:9200
+      - OPENSEARCH_HOST=https://opensearch-node1:9200
       - OPENSEARCH_VERIFY_CERTS=false
       - OLLAMA_HOST=http://host.docker.internal:11434
       - OPENSEARCH_USERNAME=admin
@@ -177,6 +192,6 @@ networks:
     driver: bridge
 
 volumes:
-  opensearch-data:
+  opensearch-data1:
   opensearch-data2:
   redis-data:

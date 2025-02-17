@@ -1,0 +1,5 @@
+admin:
+  hash: "$2y$12$XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"  # Хеш пароля Dima1203@
+  backend_roles:
+    - "admin"
+  description: "Admin user"
