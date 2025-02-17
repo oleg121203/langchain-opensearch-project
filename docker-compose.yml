@@ -2,6 +2,9 @@ name: langchain-opensearch-project
 
 services:
   opensearch-node1:
+    build:
+      context: .
+      dockerfile: Dockerfile.opensearch
     image: opensearchproject/opensearch:2
     platform: linux/arm64
     container_name: opensearch-node1
@@ -27,10 +30,8 @@ services:
         hard: 65536
     volumes:
       - ./config/opensearch-node1.yml:/usr/share/opensearch/config/opensearch.yml:ro
-      - ./config/certs:/usr/share/opensearch/config/certs:ro
       - opensearch-data1:/usr/share/opensearch/data
-      - ./config/opensearch-security:/usr/share/opensearch/config/opensearch-security:ro
-    user: "1000:1000"
+    user: opensearch
     ports:
       - "9200:9200"
       - "9600:9600"
@@ -48,16 +49,18 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    command: ["/usr/share/opensearch/opensearch-docker-entrypoint.sh"]
 
   opensearch-node2:
+    build:
+      context: .
+      dockerfile: Dockerfile.opensearch
     image: opensearchproject/opensearch:2
     platform: linux/arm64
     container_name: opensearch-node2
     volumes:
       - ./config/opensearch-node2.yml:/usr/share/opensearch/config/opensearch.yml:ro
-      - ./config/certs:/usr/share/opensearch/config/certs:ro
       - opensearch-data2:/usr/share/opensearch/data
-      - ./config/opensearch-security:/usr/share/opensearch/config/opensearch-security:ro
     environment:
       - cluster.name=opensearch-cluster
       - node.name=opensearch-node2
@@ -75,7 +78,7 @@ services:
       nofile:
         soft: 65536
         hard: 65536
-    user: "1000:1000"
+    user: opensearch
     networks:
       - langchain-network
     deploy:
@@ -90,6 +93,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    command: ["/usr/share/opensearch/opensearch-docker-entrypoint.sh"]
 
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:2

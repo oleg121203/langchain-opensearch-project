@@ -16,9 +16,9 @@ plugins.security.ssl.transport.pemtrustedcas_filepath: /usr/share/opensearch/con
 plugins.security.allow_default_init_securityindex: true
 plugins.security.restapi.admin.enabled: true
 plugins.security.nodes_dn:
-  - "CN=node.example.com, OU=SSL, O=Test, L=Test, C=DE"
+  - "CN=node.example.com,OU=SSL,O=Test,L=Test,C=DE"
 
 # Audit settings
 plugins.security.audit.type: internal_opensearch
 plugins.security.authcz.admin_dn:
-  - "CN=node.example.com, OU=SSL, O=Test, L=Test, C=DE"
+  - "CN=node.example.com,OU=SSL,O=Test,L=Test,C=DE"

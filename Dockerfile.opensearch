@@ -1,0 +1,21 @@
+FROM opensearchproject/opensearch:2
+
+USER root
+
+# Create directories and set permissions
+RUN mkdir -p /usr/share/opensearch/config/certs && \
+    chown -R opensearch:opensearch /usr/share/opensearch/config
+
+# Copy certificates
+COPY --chown=opensearch:opensearch config/certs/node.pem /usr/share/opensearch/config/certs/
+COPY --chown=opensearch:opensearch config/certs/node-key.pem /usr/share/opensearch/config/certs/
+
+# Set correct permissions
+RUN chmod 750 /usr/share/opensearch/config/certs && \
+    chmod 644 /usr/share/opensearch/config/certs/node.pem && \
+    chmod 600 /usr/share/opensearch/config/certs/node-key.pem
+
+USER opensearch
+
+ENTRYPOINT ["/usr/share/opensearch/opensearch-docker-entrypoint.sh"]
+CMD ["opensearch"]
