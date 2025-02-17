@@ -1,0 +1,13 @@
+{
+    "formatting": {
+        "keywords": "upper",
+        "identifiers": "lower",
+        "linesBetweenQueries": 2
+    },
+    "rules": {
+        "FromAsCasing": {
+            "enabled": true,
+            "matchCase": true
+        }
+    }
+}

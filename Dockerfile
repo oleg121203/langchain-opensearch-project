@@ -3,12 +3,20 @@ FROM python:3.11-slim as builder
 
 WORKDIR /build
 
-# Встановлення системних залежностей для збірки
+# Встановлення системних залежностей та локалей
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    locales \
+    && rm -rf /var/lib/apt/lists/* \
+    && sed -i '/uk_UA.UTF-8/s/^# //g' /etc/locale.gen \
+    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen
+
+ENV LANG=uk_UA.UTF-8 \
+    LANGUAGE=uk_UA:uk \
+    LC_ALL=uk_UA.UTF-8
 
 # Копіювання та встановлення залежностей
 COPY requirements.txt .
@@ -17,39 +25,32 @@ RUN pip install --user --no-cache-dir -r requirements.txt
 # Stage 2: Runtime
 FROM python:3.11-slim
 
-# Встановлення системних утиліт
+# Встановлення системних утиліт та локалей
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    locales \
+    && rm -rf /var/lib/apt/lists/* \
+    && sed -i '/uk_UA.UTF-8/s/^# //g' /etc/locale.gen \
+    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen
 
-# Налаштування локалізації
 ENV LANG=uk_UA.UTF-8 \
     LANGUAGE=uk_UA:uk \
     LC_ALL=uk_UA.UTF-8
 
-RUN apt-get update && apt-get install -y locales && \
-    sed -i -e 's/# uk_UA.UTF-8 UTF-8/uk_UA.UTF-8 UTF-8/' /etc/locale.gen && \
-    dpkg-reconfigure --frontend=noninteractive locales
-
-# Створення непривілейованого користувача
+# Створення непривілейованого користувача та директорій
 RUN useradd -m -u 1000 appuser
-
-# Створення необхідних директорій
 WORKDIR /app
 RUN mkdir -p /app/logs /app/data /app/config && \
     chown -R appuser:appuser /app
 
-# Копіювання Python пакетів з builder
+# Копіювання Python пакетів та коду
 COPY --from=builder /root/.local /home/appuser/.local
-ENV PATH=/home/appuser/.local/bin:$PATH
-
-# Копіювання коду програми
 COPY --chown=appuser:appuser . .
 
-# Налаштування змінних середовища
-ENV PYTHONUNBUFFERED=1 \
+ENV PATH=/home/appuser/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/home/appuser/.local/bin:$PATH" \
     LOG_LEVEL=INFO
 
 # Налаштування прав доступу

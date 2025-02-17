@@ -5,26 +5,36 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 # Логування та моніторинг
 from logging.handlers import RotatingFileHandler
 from pythonjsonlogger import jsonlogger
-from prometheus_client import start_http_server, Counter, Histogram
-
-# Web Framework
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 
 # LangChain та його компоненти
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_community.embeddings import OllamaEmbeddings
-from langchain.cache import RedisCache
+from langchain_community.cache import RedisCache
 from langchain.globals import set_llm_cache
 
 # Кешування та утиліти
 from redis import Redis
 import tenacity
 from dotenv import load_dotenv
+
+# Метрики Prometheus
+from prometheus_client import CollectorRegistry, start_http_server, Counter, Histogram
+registry = CollectorRegistry()
+
+SEARCH_DURATION = Histogram(
+    'search_duration_seconds',
+    'Time spent processing search requests',
+    registry=registry
+)
+SEARCH_ERRORS = Counter('search_errors_total', 'Total number of search errors', registry=registry)
+CACHE_HITS = Counter('cache_hits_total', 'Total number of cache hits', registry=registry)
 
 # Завантаження змінних середовища
 load_dotenv()
@@ -46,22 +56,19 @@ logHandler.setFormatter(formatter)
 logger.addHandler(logHandler)
 logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
 
-# Метрики Prometheus
-SEARCH_DURATION = Histogram(
-    'search_duration_seconds',
-    'Time spent processing search requests'
-)
-SEARCH_ERRORS = Counter(
-    'search_errors_total',
-    'Total number of search errors'
-)
-CACHE_HITS = Counter(
-    'cache_hits_total',
-    'Total number of cache hits'
-)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_http_server(8000)
+    logger.info("Application started")
+    yield
+    try:
+        redis_client.close()
+        logger.info("Application shutdown complete")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {str(e)}")
 
 # Ініціалізація FastAPI
-app = FastAPI(title="LangChain Search API")
+app = FastAPI(title="LangChain Search API", lifespan=lifespan)
 
 # Налаштування Redis кешу
 redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
@@ -181,22 +188,6 @@ async def search_declarations(query: SearchQuery) -> SearchResponse:
 async def search_endpoint(query: SearchQuery):
     """API endpoint для пошуку"""
     return await search_declarations(query)
-
-@app.on_event("startup")
-async def startup_event():
-    """Ініціалізація при запуску"""
-    # Запуск Prometheus метрик
-    start_http_server(8000)
-    logger.info("Application started")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Очищення при зупинці"""
-    try:
-        redis_client.close()
-        logger.info("Application shutdown complete")
-    except Exception as e:
-        logger.error(f"Error during shutdown: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

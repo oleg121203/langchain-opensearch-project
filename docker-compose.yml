@@ -1,3 +1,5 @@
+name: langchain-opensearch-project
+
 services:
   opensearch:
     image: opensearchproject/opensearch:2
@@ -6,19 +8,23 @@ services:
     environment:
       - discovery.type=single-node
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Dima1203@
       - bootstrap.memory_lock=true
-      - plugins.security.disabled=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=false
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Dima1203@
     ulimits:
       memlock:
         soft: -1
         hard: -1
+    volumes:
+      - ./config/opensearch.yml:/usr/share/opensearch/config/opensearch.yml:rw
+      - ./config/certs:/usr/share/opensearch/config/certs:rw
+      - ./config/sqlformat.json:/usr/share/opensearch/config/sqlformat.json:ro
+      - opensearch-data:/usr/share/opensearch/data
+      - ./config/templates:/usr/share/opensearch/config/templates:ro
     ports:
       - "9200:9200"
       - "9600:9600"
-    volumes:
-      - ./config/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
-      - opensearch-data:/usr/share/opensearch/data
     networks:
       - langchain-network
     deploy:
@@ -28,10 +34,10 @@ services:
         reservations:
           memory: 6G
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -s -k -u admin:Dima1203@ https://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 40s
 
   redis:
@@ -68,6 +74,10 @@ services:
       - ./csv_data:/usr/share/logstash/data
       - ./logs/logstash:/usr/share/logstash/logs
     environment:
+      - OPENSEARCH_USERNAME=admin
+      - OPENSEARCH_PASSWORD=Dima1203@
+      - LANG=uk_UA.UTF-8
+      - LC_ALL=uk_UA.UTF-8
       - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
     networks:
       - langchain-network
@@ -82,10 +92,14 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - OPENSEARCH_HOST=http://opensearch:9200
+      - LANG=uk_UA.UTF-8
+      - LANGUAGE=uk_UA:uk
+      - LC_ALL=uk_UA.UTF-8
+      - OPENSEARCH_HOST=https://opensearch:9200
+      - OPENSEARCH_VERIFY_CERTS=false
       - OLLAMA_HOST=http://host.docker.internal:11434
       - OPENSEARCH_USERNAME=admin
-      - OPENSEARCH_PASSWORD=YourStrongPassword123!
+      - OPENSEARCH_PASSWORD=Dima1203@
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=DEBUG
     volumes:
