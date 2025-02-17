@@ -97,11 +97,11 @@ setup_permissions() {
     
     for node in "opensearch-node1" "opensearch-node2"; do
         docker-compose exec -T $node bash -c '
-            chmod 700 /usr/share/opensearch/config
-            chmod 700 /usr/share/opensearch/config/certs
-            chmod 600 /usr/share/opensearch/config/certs/node.pem
-            chmod 600 /usr/share/opensearch/config/opensearch.yml
-            chown -R 1000:1000 /usr/share/opensearch/config/certs
+            sudo chmod 700 /usr/share/opensearch/config
+            sudo chmod 700 /usr/share/opensearch/config/certs
+            sudo chmod 600 /usr/share/opensearch/config/certs/node.pem
+            sudo chmod 600 /usr/share/opensearch/config/opensearch.yml
+            sudo chown -R 1000:1000 /usr/share/opensearch/config/certs
         ' || log "⚠️ Ошибка настройки прав для $node"
     done
     
@@ -245,7 +245,7 @@ run_fix_permissions() {
     log "📝 Исправление прав доступа..."
     if [ -f "fix-permissions.sh" ]; then
         chmod +x fix-permissions.sh
-        ./fix-permissions.sh
+        sudo ./fix-permissions.sh
         check_status "Исправление прав доступа"
     else
         log "⚠️ Файл fix-permissions.sh не найден"
@@ -294,15 +294,26 @@ case $COMMAND in    # исправлено в на in
         ;;
     rebuild)
         log "Перезбірка сервісів: $SERVICES"
-        setup_scripts_permissions
-        docker-compose down
-        setup_certificates
-        run_fix_permissions
-        run_init_security
-        docker-compose build --no-cache $SERVICES
-        docker-compose up -d $SERVICES
-        setup_permissions
-        check_status "Перезбірка сервісів"
+        
+        # Остановка и очистка
+        log "Зупинка та очищення контейнерів..."
+        docker-compose down -v
+        
+        # Генерация сертификатов
+        log "🔐 Генерація сертифікатів..."
+        chmod +x generate-certs.sh
+        ./generate-certs.sh
+        check_status "Генерація сертифікатів"
+        
+        # Пересборка и запуск
+        log "🔄 Перезбірка контейнерів..."
+        docker-compose build --no-cache
+        
+        log "🚀 Запуск контейнерів..."
+        docker-compose up -d
+        
+        # Проверка результата
+        check_cluster_health
         run_health_check
         ;;
     clean)

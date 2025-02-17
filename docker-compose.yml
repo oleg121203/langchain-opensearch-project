@@ -1,99 +1,67 @@
 name: langchain-opensearch-project
 
+x-opensearch-common: &opensearch-common
+  build:
+    context: .
+    dockerfile: Dockerfile.opensearch
+  image: opensearchproject/opensearch:2
+  platform: linux/arm64
+  environment: &opensearch-env
+    cluster.name: "opensearch-cluster"
+    bootstrap.memory_lock: "true"
+    OPENSEARCH_JAVA_OPTS: "-Xms1g -Xmx1g"
+    JAVA_OPTS: "-Djava.security.egd=file:/dev/urandom -Dcom.sun.jndi.ldap.object.trustURLCodebase=false"
+    discovery.type: "single-node"
+    plugins.security.disabled: "true"
+    plugins.security.ssl.http.enabled: "false"
+    plugins.security.ssl.transport.enabled: "false"
+    plugins.security.allow_default_init_securityindex: "true"
+  ulimits:
+    memlock:
+      soft: -1
+      hard: -1
+    nofile:
+      soft: 65535
+      hard: 65535
+  user: opensearch
+  networks:
+    - langchain-network
+  deploy:
+    resources:
+      limits:
+        memory: 8G
+      reservations:
+        memory: 6G
+  healthcheck:
+    test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
+    interval: 20s
+    timeout: 10s
+    retries: 5
+    start_period: 60s
+
 services:
   opensearch-node1:
-    build:
-      context: .
-      dockerfile: Dockerfile.opensearch
-    image: opensearchproject/opensearch:2
-    platform: linux/arm64
+    <<: *opensearch-common
     container_name: opensearch-node1
     environment:
-      - cluster.name=opensearch-cluster
-      - node.name=opensearch-node1
-      - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
-      - DISABLE_SECURITY_PLUGIN=false
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Dima1203@
-      - JAVA_OPTS=-Djava.security.egd=file:/dev/urandom -Dcom.sun.jndi.ldap.object.trustURLCodebase=false
-      - DISABLE_INSTALL_DEMO_CONFIG=true
-      - discovery.type=single-node
-      - plugins.security.ssl.transport.enforce_hostname_verification=false
-      - plugins.security.allow_unsafe_democertificates=true
-      - plugins.security.allow_default_init_securityindex=true
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
+      <<: *opensearch-env
+      node.name: "opensearch-node1"
     volumes:
       - ./config/opensearch-node1.yml:/usr/share/opensearch/config/opensearch.yml:ro
       - opensearch-data1:/usr/share/opensearch/data
-    user: opensearch
     ports:
       - "9200:9200"
       - "9600:9600"
-    networks:
-      - langchain-network
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 6G
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s -k -u admin:Dima1203@ https://localhost:9200/_cluster/health || exit 1"]
-      interval: 20s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    command: ["/usr/share/opensearch/opensearch-docker-entrypoint.sh"]
 
   opensearch-node2:
-    build:
-      context: .
-      dockerfile: Dockerfile.opensearch
-    image: opensearchproject/opensearch:2
-    platform: linux/arm64
+    <<: *opensearch-common
     container_name: opensearch-node2
+    environment:
+      <<: *opensearch-env
+      node.name: "opensearch-node2"
     volumes:
       - ./config/opensearch-node2.yml:/usr/share/opensearch/config/opensearch.yml:ro
       - opensearch-data2:/usr/share/opensearch/data
-    environment:
-      - cluster.name=opensearch-cluster
-      - node.name=opensearch-node2
-      - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
-      - DISABLE_SECURITY_PLUGIN=false
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Dima1203@
-      - JAVA_OPTS=-Djava.security.egd=file:/dev/urandom -Dcom.sun.jndi.ldap.object.trustURLCodebase=false
-      - DISABLE_INSTALL_DEMO_CONFIG=true
-      - discovery.type=single-node
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
-    user: opensearch
-    networks:
-      - langchain-network
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 6G
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s -k -u admin:Dima1203@ https://localhost:9200/_cluster/health || exit 1"]
-      interval: 20s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    command: ["/usr/share/opensearch/opensearch-docker-entrypoint.sh"]
 
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:2
@@ -101,9 +69,7 @@ services:
     ports:
       - "5601:5601"
     environment:
-      - OPENSEARCH_HOSTS=["https://opensearch-node1:9200","https://opensearch-node2:9200"]
-      - OPENSEARCH_USERNAME=admin
-      - OPENSEARCH_PASSWORD=Dima1203@
+      - OPENSEARCH_HOSTS=["http://opensearch-node1:9200","http://opensearch-node2:9200"]
     networks:
       - langchain-network
     depends_on:
@@ -133,31 +99,25 @@ services:
   logstash:
     image: opensearchproject/logstash-oss-with-opensearch-output-plugin:7.16.2
     container_name: logstash
-    depends_on:
-      opensearch-node1:
-        condition: service_healthy
-      opensearch-node2:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     volumes:
-      - ./config/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-      - ./config/logstash.yml:/usr/share/logstash/config/logstash.yml
-      - ./csv_data:/usr/share/logstash/data
+      - ./config/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - ./config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./csv_data:/usr/share/logstash/data:ro
       - ./logs/logstash:/usr/share/logstash/logs
-      - /usr/share/locale:/usr/share/locale:ro
     environment:
-      - OPENSEARCH_USERNAME=admin
-      - OPENSEARCH_PASSWORD=Dima1203@
+      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+      - OPENSEARCH_URL=http://opensearch-node1:9200
       - LANG=uk_UA.UTF-8
       - LC_ALL=uk_UA.UTF-8
-      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
     networks:
       - langchain-network
     deploy:
       resources:
         limits:
           memory: 5G
+    depends_on:
+      - opensearch-node1
+      - redis
 
   langchain:
     build: .
@@ -166,30 +126,22 @@ services:
       - "5000:5000"
     environment:
       - LANG=uk_UA.UTF-8
-      - LANGUAGE=uk_UA:uk
       - LC_ALL=uk_UA.UTF-8
-      - OPENSEARCH_HOST=https://opensearch-node1:9200
-      - OPENSEARCH_VERIFY_CERTS=false
+      - OPENSEARCH_HOST=http://opensearch-node1:9200
       - OLLAMA_HOST=http://host.docker.internal:11434
-      - OPENSEARCH_USERNAME=admin
-      - OPENSEARCH_PASSWORD=Dima1203@
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=DEBUG
     volumes:
       - ./logs/langchain:/app/logs
     networks:
       - langchain-network
-    depends_on:
-      opensearch-node1:
-        condition: service_healthy
-      opensearch-node2:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     deploy:
       resources:
         limits:
           memory: 4G
+    depends_on:
+      - opensearch-node1
+      - redis
 
 networks:
   langchain-network:

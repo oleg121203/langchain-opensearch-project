@@ -2,18 +2,19 @@ FROM opensearchproject/opensearch:2
 
 USER root
 
-# Create directories and set permissions
-RUN mkdir -p /usr/share/opensearch/config/certs && \
+# Создаем директории с правильными правами
+RUN mkdir -p /usr/share/opensearch/config/certs /usr/share/opensearch/config/opensearch-security && \
     chown -R opensearch:opensearch /usr/share/opensearch/config
 
-# Copy certificates
+# Копируем сертификаты и конфигурацию
 COPY --chown=opensearch:opensearch config/certs/node.pem /usr/share/opensearch/config/certs/
 COPY --chown=opensearch:opensearch config/certs/node-key.pem /usr/share/opensearch/config/certs/
 
-# Set correct permissions
+# Устанавливаем корректные разрешения
 RUN chmod 750 /usr/share/opensearch/config/certs && \
-    chmod 644 /usr/share/opensearch/config/certs/node.pem && \
-    chmod 600 /usr/share/opensearch/config/certs/node-key.pem
+    chmod 640 /usr/share/opensearch/config/certs/node.pem && \
+    chmod 600 /usr/share/opensearch/config/certs/node-key.pem && \
+    chown -R opensearch:opensearch /usr/share/opensearch/config/certs
 
 USER opensearch
 
