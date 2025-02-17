@@ -1,5 +1,28 @@
 #!/bin/bash
 
+# Create required directories
+mkdir -p ./config/certs
+mkdir -p ./config/opensearch-security
+
+# Set directory permissions
+chmod 750 ./config/certs
+chmod 750 ./config/opensearch-security
+
+# Generate dummy files if they don't exist (will be overwritten later)
+touch ./config/certs/node.pem
+touch ./config/certs/node-key.pem
+
+# Set permissions for certificates
+chmod 644 ./config/certs/node.pem
+chmod 600 ./config/certs/node-key.pem
+
+# Set ownership
+chown -R 1000:1000 ./config/certs
+chown -R 1000:1000 ./config/opensearch-security
+
+# Set security config permissions
+find ./config/opensearch-security -type f -name "*.yml" -exec chmod 644 {} \;
+
 # Функція для перевірки існування контейнера
 check_container() {
     if ! docker ps -q -f name=$1 | grep -q .; then
@@ -9,38 +32,13 @@ check_container() {
     return 0
 }
 
-# Виправлення прав доступу для opensearch-node1
-if check_container opensearch-node1; then
-    docker-compose exec -T opensearch-node1 bash -c '
-        mkdir -p /usr/share/opensearch/config/opensearch-security
-        mkdir -p /usr/share/opensearch/config/templates
-        
-        # Встановлення прав доступу для директорій
-        chmod -R 700 /usr/share/opensearch/config
-        chmod 700 /usr/share/opensearch/config/certs
-        
-        # Встановлення прав доступу для файлів
-        find /usr/share/opensearch/config -type f -exec chmod 600 {} \;
-        
-        # Встановлення власника
-        chown -R 1000:1000 /usr/share/opensearch/config || true
+# Fix permissions inside containers
+for node in opensearch-node1 opensearch-node2; do
+    docker-compose exec -T $node bash -c '
+        mkdir -p /usr/share/opensearch/config/certs
+        chmod 750 /usr/share/opensearch/config/certs
+        chown -R 1000:1000 /usr/share/opensearch/config/certs
+        chmod 600 /usr/share/opensearch/config/certs/node-key.pem
+        chmod 644 /usr/share/opensearch/config/certs/node.pem
     '
-fi
-
-# Виправлення прав доступу для opensearch-node2
-if check_container opensearch-node2; then
-    docker-compose exec -T opensearch-node2 bash -c '
-        mkdir -p /usr/share/opensearch/config/opensearch-security
-        mkdir -p /usr/share/opensearch/config/templates
-        
-        # Встановлення прав доступу для директорій
-        chmod -R 700 /usr/share/opensearch/config
-        chmod 700 /usr/share/opensearch/config/certs
-        
-        # Встановлення прав доступу для файлів
-        find /usr/share/opensearch/config -type f -exec chmod 600 {} \;
-        
-        # Встановлення власника
-        chown -R 1000:1000 /usr/share/opensearch/config || true
-    '
-fi
+done

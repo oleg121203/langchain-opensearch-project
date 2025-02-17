@@ -26,18 +26,11 @@ services:
         soft: 65536
         hard: 65536
     volumes:
-      - ./config/opensearch-node1.yml:/usr/share/opensearch/config/opensearch.yml:z
-      - ./config/certs:/usr/share/opensearch/config/certs:z
+      - ./config/opensearch-node1.yml:/usr/share/opensearch/config/opensearch.yml:ro
+      - ./config/certs:/usr/share/opensearch/config/certs:ro
       - opensearch-data1:/usr/share/opensearch/data
-      - type: bind
-        source: ./config/internal_users.yml
-        target: /usr/share/opensearch/config/opensearch-security/internal_users.yml
-        read_only: true
-      - type: bind
-        source: ./config/templates
-        target: /usr/share/opensearch/config/templates
-        read_only: true
-      - ./config/sqlformat.json:/usr/share/opensearch/config/sqlformat.json:ro
+      - ./config/opensearch-security:/usr/share/opensearch/config/opensearch-security:ro
+    user: "1000:1000"
     ports:
       - "9200:9200"
       - "9600:9600"
@@ -61,17 +54,10 @@ services:
     platform: linux/arm64
     container_name: opensearch-node2
     volumes:
-      - ./config/opensearch-node2.yml:/usr/share/opensearch/config/opensearch.yml:z
-      - ./config/certs:/usr/share/opensearch/config/certs:z
+      - ./config/opensearch-node2.yml:/usr/share/opensearch/config/opensearch.yml:ro
+      - ./config/certs:/usr/share/opensearch/config/certs:ro
       - opensearch-data2:/usr/share/opensearch/data
-      - type: bind
-        source: ./config/internal_users.yml
-        target: /usr/share/opensearch/config/opensearch-security/internal_users.yml
-        read_only: true
-      - type: bind
-        source: ./config/templates
-        target: /usr/share/opensearch/config/templates
-        read_only: true
+      - ./config/opensearch-security:/usr/share/opensearch/config/opensearch-security:ro
     environment:
       - cluster.name=opensearch-cluster
       - node.name=opensearch-node2
@@ -89,6 +75,7 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+    user: "1000:1000"
     networks:
       - langchain-network
     deploy:

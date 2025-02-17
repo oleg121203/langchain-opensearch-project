@@ -7,12 +7,12 @@ discovery.type: single-node
 plugins.security.ssl.http.enabled: true
 plugins.security.ssl.transport.enabled: true
 plugins.security.ssl.http.clientauth_mode: OPTIONAL
-plugins.security.ssl.http.pemcert_filepath: certs/node.pem
-plugins.security.ssl.http.pemkey_filepath: certs/node-key.pem
-plugins.security.ssl.http.pemtrustedcas_filepath: certs/node.pem
-plugins.security.ssl.transport.pemcert_filepath: certs/node.pem
-plugins.security.ssl.transport.pemkey_filepath: certs/node-key.pem
-plugins.security.ssl.transport.pemtrustedcas_filepath: certs/node.pem
+plugins.security.ssl.http.pemcert_filepath: /usr/share/opensearch/config/certs/node.pem
+plugins.security.ssl.http.pemkey_filepath: /usr/share/opensearch/config/certs/node-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: /usr/share/opensearch/config/certs/node.pem
+plugins.security.ssl.transport.pemcert_filepath: /usr/share/opensearch/config/certs/node.pem
+plugins.security.ssl.transport.pemkey_filepath: /usr/share/opensearch/config/certs/node-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: /usr/share/opensearch/config/certs/node.pem
 plugins.security.allow_default_init_securityindex: true
 plugins.security.restapi.admin.enabled: true
 plugins.security.nodes_dn:

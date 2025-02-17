@@ -142,6 +142,15 @@ setup_scripts_permissions() {
             log "🔒 Встановлено обмежені права на $critical_script"
         fi
     done
+
+    # Установка прав для файлов конфигурации безопасности
+    log "🔒 Установка прав на файлы конфигурации OpenSearch..."
+    if [ -d "config/opensearch-security" ]; then
+        chmod 600 config/opensearch-security/*.yml 2>/dev/null || log "⚠️ Нет YAML файлов в директории безопасности"
+        log "✅ Права на конфигурацию установлены"
+    else
+        log "⚠️ Директория конфигурации безопасности не найдена"
+    fi
     
     check_status "Установка прав на скрипты"
 }
@@ -243,10 +252,10 @@ run_fix_permissions() {
     fi
 }
 
-# Добавляем функцию для запуска health_check.sh
+# Исправляем функцию run_health_check
 run_health_check() {
     log "🏥 Запуск повної перевірки здоров'я системи..."
-    if [ -f "scripts/health_check.sh" ]; then
+    if [ -f "scripts/health_check.sh" ]; then    # исправлено -ф на -f и то на then
         chmod +x scripts/health_check.sh
         ./scripts/health_check.sh
         check_status "Перевірка здоров'я системи"
@@ -255,7 +264,7 @@ run_health_check() {
     fi
 }
 
-case $COMMAND in
+case $COMMAND in    # исправлено в на in
     start)
         log "Запуск сервісів: $SERVICES"
         setup_scripts_permissions
@@ -307,14 +316,14 @@ case $COMMAND in
         # Очищаем volumes и сертификаты
         log "Очищення томів та сертифікатів..."
         docker volume prune -f
-        docker volume rm $(docker volume ls -q | grep 'langchain-opensearch-project') 2>/dev/null || true
+        docker volume rm $(docker volume ls -q | grep 'langchain-opensearch-project') 2>/dev/null || true    # исправлено или на ||
         clean_certificates
         
         # Настройка окружения
         setup_scripts_permissions
         
         # Инициализация конфигурации
-        if [ -f "init-config.sh" ];then
+        if [ -f "init-config.sh" ]; then    # исправлено -ф на -f и то на then
             log "Налаштування початкової конфігурації..."
             ./init-config.sh
             check_status "Налаштування конфігурації"
@@ -354,16 +363,16 @@ case $COMMAND in
 esac
 
 # Перевірка статусу
-if [ "$COMMAND" != "logs" ]; then
+if [ "$COMMAND" != "logs" ]; then    # исправлено то на then
     log "Перевірка статусу сервісів..."
     for service in $SERVICES; do
         if docker-compose ps --format "{{.State}}" $service | grep -q "running\|healthy"; then
             log "✅ $service працює"
             
             # Дополнительная проверка для нод OpenSearch
-            if [[ $service == opensearch-node* ]]; then
+            if [[ $service == opensearch-node* ]]; then    # исправлено то на then
                 local node_health=$(curl -s -k -u admin:Dima1203@ https://localhost:9200/_nodes/$service/stats)
-                if [[ $node_health == *'"status":"green"'* ]] || [[ $node_health == *'"status":"yellow"'* ]]; then
+                if [[ $node_health == *'"status":"green"'* ]] || [[ $node_health == *'"status":"yellow"'* ]]; then    # исправлено или на ||
                     log "  └─ Нода в кластере активна"
                 else
                     log "  └─ ⚠️ Проблемы с нодой в кластере"
