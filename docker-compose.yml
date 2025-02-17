@@ -1,7 +1,7 @@
 name: langchain-opensearch-project
 
 services:
-  opensearch:
+  opensearch-node1:
     image: opensearchproject/opensearch:2
     platform: linux/arm64
     container_name: opensearch
@@ -12,12 +12,16 @@ services:
       - DISABLE_INSTALL_DEMO_CONFIG=true
       - DISABLE_SECURITY_PLUGIN=false
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Dima1203@
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node1
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2
+      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2
     ulimits:
       memlock:
         soft: -1
         hard: -1
     volumes:
-      - ./config/opensearch.yml:/usr/share/opensearch/config/opensearch.yml:rw
+      - ./config/opensearch-node1.yml:/usr/share/opensearch/config/opensearch.yml:rw
       - ./config/certs:/usr/share/opensearch/config/certs:rw
       - ./config/sqlformat.json:/usr/share/opensearch/config/sqlformat.json:ro
       - opensearch-data:/usr/share/opensearch/data
@@ -39,6 +43,53 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  opensearch-node2:
+    image: opensearchproject/opensearch:2
+    platform: linux/arm64
+    container_name: opensearch-node2
+    volumes:
+      - ./config/opensearch-node2.yml:/usr/share/opensearch/config/opensearch.yml:rw
+      - ./config/certs:/usr/share/opensearch/config/certs:rw
+      - opensearch-data2:/usr/share/opensearch/data
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node2
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2
+      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=false
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Dima1203@
+    networks:
+      - langchain-network
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 6G
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -k -u admin:Dima1203@ https://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2
+    container_name: opensearch-dashboards
+    ports:
+      - "5601:5601"
+    environment:
+      - OPENSEARCH_HOSTS=["https://opensearch-node1:9200","https://opensearch-node2:9200"]
+      - OPENSEARCH_USERNAME=admin
+      - OPENSEARCH_PASSWORD=Dima1203@
+    networks:
+      - langchain-network
+    depends_on:
+      opensearch-node1:
+        condition: service_healthy
 
   redis:
     image: redis:7-alpine
@@ -64,7 +115,9 @@ services:
     image: opensearchproject/logstash-oss-with-opensearch-output-plugin:7.16.2
     container_name: logstash
     depends_on:
-      opensearch:
+      opensearch-node1:
+        condition: service_healthy
+      opensearch-node2:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -108,7 +161,9 @@ services:
     networks:
       - langchain-network
     depends_on:
-      opensearch:
+      opensearch-node1:
+        condition: service_healthy
+      opensearch-node2:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -123,4 +178,5 @@ networks:
 
 volumes:
   opensearch-data:
+  opensearch-data2:
   redis-data:

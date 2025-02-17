@@ -16,7 +16,7 @@ check_status() {
 }
 
 # Перелік всіх сервісів
-ALL_SERVICES="opensearch redis logstash langchain"
+ALL_SERVICES="opensearch-node1 opensearch-node2 opensearch-dashboards redis logstash langchain"
 
 # Функція для показу допомоги
 show_help() {
@@ -93,15 +93,18 @@ setup_certificates() {
 
 # Добавляем функцию настройки прав доступа
 setup_permissions() {
-    log "🔐 Настройка прав доступу..."
+    log "🔐 Настройка прав доступа..."
     
-    docker-compose exec -T opensearch bash -c '
-        chmod 700 /usr/share/opensearch/config
-        chmod 700 /usr/share/opensearch/config/certs
-        chmod 600 /usr/share/opensearch/config/certs/node.pem
-        chmod 600 /usr/share/opensearch/config/opensearch.yml
-        chown -R 1000:1000 /usr/share/opensearch/config/certs
-    '
+    for node in "opensearch-node1" "opensearch-node2"; do
+        docker-compose exec -T $node bash -c '
+            chmod 700 /usr/share/opensearch/config
+            chmod 700 /usr/share/opensearch/config/certs
+            chmod 600 /usr/share/opensearch/config/certs/node.pem
+            chmod 600 /usr/share/opensearch/config/opensearch.yml
+            chown -R 1000:1000 /usr/share/opensearch/config/certs
+        ' || log "⚠️ Ошибка настройки прав для $node"
+    done
+    
     check_status "Налаштування прав доступу"
 }
 
@@ -121,7 +124,7 @@ setup_scripts_permissions() {
     )
     
     for script in "${SCRIPTS[@]}"; do
-        if [ -f "$script" ]; then
+        if [ -ф "$script" ]; то
             chmod +x "$script"
             log "✅ Установлены права на $script"
         else
@@ -137,7 +140,7 @@ setup_certs_permissions() {
     log "🔑 Настройка прав доступа к сертификатам..."
     
     # Удаление старой директории сертификатов
-    if [ -д "config/certs" ]; then
+    if [ -д "config/certs" ]; то
         log "Удаление существующей директории сертификатов..."
         sudo rm -rf config/certs
     fi
@@ -150,13 +153,30 @@ setup_certs_permissions() {
     check_status "Настройка прав доступа к сертификатам"
 }
 
-case $COMMAND in
+# Добавляем функцию проверки кластера
+check_cluster_health() {
+    log "🔍 Проверка здоровья кластера..."
+    for i in {1..30}; do
+        local health=$(curl -s -k -u admin:Dima1203@ https://localhost:9200/_cluster/health)
+        if [[ $health == *'"status":"green"'* ]] || [[ $health == *'"status":"yellow"'* ]]; then
+            log "✅ Кластер OpenSearch работает нормально"
+            return 0
+        fi
+        log "⏳ Ожидание готовности кластера... ($i/30)"
+        sleep 5
+    done
+    log "❌ Кластер OpenSearch не готов"
+    return 1
+}
+
+case $COMMAND в
     start)
         log "Запуск сервісів: $SERVICES"
         setup_scripts_permissions
         docker-compose up -d $SERVICES
         check_status "Запуск сервісів"
         setup_permissions
+        check_cluster_health
         ;;
     stop)
         log "Зупинка сервісів: $SERVICES"
@@ -223,20 +243,9 @@ case $COMMAND in
         log "Запуск системи..."
         docker-compose up -d
         setup_permissions
+        check_cluster_health
         check_status "Запуск системи"
         
-        # Увеличиваем время ожидания и интервал проверки
-        log "Очікування готовності OpenSearch..."
-        for i in {1..45}; do
-            if curl -s -k "https://localhost:9200/_cluster/health" -u admin:Dima1203@ > /dev/null; then
-                log "✅ OpenSearch готовий"
-                break
-            fi
-            log "⏳ Очікування... ($i/45)"
-            sleep 3
-        done
-        
-        log "✨ Система повністю перезапущена"
         docker-compose ps
         ;;
     *)
@@ -252,6 +261,16 @@ if [ "$COMMAND" != "logs" ]; then
     for service in $SERVICES; do
         if docker-compose ps --format "{{.State}}" $service | grep -q "running\|healthy"; then
             log "✅ $service працює"
+            
+            # Дополнительная проверка для нод OpenSearch
+            if [[ $service == opensearch-node* ]]; then
+                local node_health=$(curl -s -k -u admin:Dima1203@ https://localhost:9200/_nodes/$service/stats)
+                if [[ $node_health == *'"status":"green"'* ]] || [[ $node_health == *'"status":"yellow"'* ]]; then
+                    log "  └─ Нода в кластере активна"
+                else
+                    log "  └─ ⚠️ Проблемы с нодой в кластере"
+                fi
+            fi
         else
             log "❌ $service не запущено"
         fi
