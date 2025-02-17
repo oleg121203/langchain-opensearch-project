@@ -7,6 +7,8 @@ network.host: 0.0.0.0
 # Настройки безопасности
 plugins.security.ssl.http.enabled: true
 plugins.security.ssl.transport.enabled: true
+plugins.security.ssl.http.clientauth_mode: OPTIONAL
+plugins.security.ssl.transport.enforce_hostname_verification: false
 plugins.security.ssl.http.pemcert_filepath: certs/node.pem
 plugins.security.ssl.http.pemkey_filepath: certs/node-key.pem
 plugins.security.ssl.http.pemtrustedcas_filepath: certs/node.pem
@@ -16,14 +18,6 @@ plugins.security.ssl.transport.pemtrustedcas_filepath: certs/node.pem
 plugins.security.allow_default_init_securityindex: true
 plugins.security.nodes_dn:
   - "CN=node.example.com, OU=SSL, O=Test, L=Test, C=DE"
-
-# Удалить эти строки, так как они вызывают ошибку
-# plugins.security.ssl.http.verification_mode: certificate
-# plugins.security.ssl.transport.verification_mode: certificate
-
-# Использовать вместо них:
-plugins.security.ssl.http.clientauth_mode: OPTIONAL
-plugins.security.ssl.transport.enforce_hostname_verification: false
 
 # Дополнительные настройки безопасности
 plugins.security.ssl.transport.keystore_keypassword: "Dima1203@"

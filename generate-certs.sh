@@ -31,3 +31,22 @@ else
     echo "❌ Ошибка при создании сертификатов"
     exit 1
 fi
+
+# Расширенная проверка сертификатов
+verify_cert() {
+    local cert="$CERTS_DIR/node.pem"
+    local subject=$(openssl x509 -in "$cert" -noout -subject)
+    
+    if [[ "$subject" == *"CN=node.example.com"* ]] && \
+       [[ "$subject" == *"OU=SSL"* ]] && \
+       [[ "$subject" == *"O=Test"* ]]; then
+        echo "✅ Сертификат создан с правильными DN"
+        return 0
+    else
+        echo "❌ Неверные DN в сертификате"
+        echo "Текущие DN: $subject"
+        return 1
+    fi
+}
+
+verify_cert || exit 1

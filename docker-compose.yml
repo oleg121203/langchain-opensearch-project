@@ -73,6 +73,7 @@ services:
       - ./config/logstash.yml:/usr/share/logstash/config/logstash.yml
       - ./csv_data:/usr/share/logstash/data
       - ./logs/logstash:/usr/share/logstash/logs
+      - /usr/share/locale:/usr/share/locale:ro
     environment:
       - OPENSEARCH_USERNAME=admin
       - OPENSEARCH_PASSWORD=Dima1203@
