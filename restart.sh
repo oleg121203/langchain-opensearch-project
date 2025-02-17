@@ -120,6 +120,7 @@ setup_scripts_permissions() {
         "generate-certs.sh"
         "init-security.sh"
         "fix-permissions.sh"
+        "init-config.sh"
         "scripts/backup.sh"
         "scripts/health_check.sh"
         "scripts/setup.sh"
@@ -131,6 +132,14 @@ setup_scripts_permissions() {
             log "✅ Установлены права на $script"
         else
             log "⚠️ Скрипт $script не найден"
+        fi
+    done
+    
+    # Особливі права для критичних скриптів
+    for critical_script in "init-config.sh" "init-security.sh" "generate-certs.sh"; do
+        if [ -f "$critical_script" ]; then
+            chmod 700 "$critical_script"
+            log "🔒 Встановлено обмежені права на $critical_script"
         fi
     done
     
@@ -149,6 +158,30 @@ setup_certs_permissions() {
     mkdir -p config/certs
     chmod 755 config/certs
     check_status "Настройка прав доступа к сертификатам"
+}
+
+# Добавляем функцию очистки сертификатов и ключей
+clean_certificates() {
+    log "🧹 Очищення старих сертифікатів та ключів..."
+    local cert_paths=(
+        "config/certs"
+        "config/node-1-keystore.jks"
+        "config/node-1-truststore.jks"
+        "config/node-2-keystore.jks"
+        "config/node-2-truststore.jks"
+        "config/root-ca.pem"
+        "config/root-ca-key.pem"
+        "config/admin.pem"
+        "config/admin-key.pem"
+    )
+
+    for path in "${cert_paths[@]}"; do
+        if [ -e "$path" ]; then
+            log "Видалення $path"
+            sudo rm -rf "$path"
+        fi
+    done
+    check_status "Очищення сертифікатів"
 }
 
 # Исправляем функцию проверки кластера
@@ -210,6 +243,18 @@ run_fix_permissions() {
     fi
 }
 
+# Добавляем функцию для запуска health_check.sh
+run_health_check() {
+    log "🏥 Запуск повної перевірки здоров'я системи..."
+    if [ -f "scripts/health_check.sh" ]; then
+        chmod +x scripts/health_check.sh
+        ./scripts/health_check.sh
+        check_status "Перевірка здоров'я системи"
+    else
+        log "⚠️ Файл health_check.sh не знайдено"
+    fi
+}
+
 case $COMMAND in
     start)
         log "Запуск сервісів: $SERVICES"
@@ -218,6 +263,7 @@ case $COMMAND in
         check_status "Запуск сервісів"
         setup_permissions
         check_cluster_health
+        run_health_check
         ;;
     stop)
         log "Зупинка сервісів: $SERVICES"
@@ -248,19 +294,34 @@ case $COMMAND in
         docker-compose up -d $SERVICES
         setup_permissions
         check_status "Перезбірка сервісів"
+        run_health_check
         ;;
     clean)
         log "🧹 Повне очищення та перезапуск системи..."
         
         # Останавливаем все контейнеры
+        log "Зупинка всіх контейнерів..."
         docker-compose down --remove-orphans
         sleep 5
         
-        # Очищаем volumes
+        # Очищаем volumes и сертификаты
+        log "Очищення томів та сертифікатів..."
+        docker volume prune -f
         docker volume rm $(docker volume ls -q | grep 'langchain-opensearch-project') 2>/dev/null || true
+        clean_certificates
         
         # Настройка окружения
         setup_scripts_permissions
+        
+        # Инициализация конфигурации
+        if [ -f "init-config.sh" ];then
+            log "Налаштування початкової конфігурації..."
+            ./init-config.sh
+            check_status "Налаштування конфігурації"
+        else
+            log "⚠️ Файл init-config.sh не найден"
+        fi
+        
         setup_certs_permissions
         setup_certificates
         
@@ -283,6 +344,7 @@ case $COMMAND in
         
         log "📊 Статус системи:"
         docker-compose ps
+        run_health_check
         ;;
     *)
         log "❌ Не вказана команда"

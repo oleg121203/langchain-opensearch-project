@@ -1,0 +1,7 @@
+admin:
+  users:
+    - admin
+
+reader:
+  users:
+    - reader
