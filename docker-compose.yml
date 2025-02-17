@@ -46,6 +46,7 @@ services:
     environment:
       <<: *opensearch-env
       node.name: "opensearch-node1"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: StrongPassword123
     volumes:
       - ./config/opensearch-node1.yml:/usr/share/opensearch/config/opensearch.yml:ro
       - opensearch-data1:/usr/share/opensearch/data
@@ -59,6 +60,7 @@ services:
     environment:
       <<: *opensearch-env
       node.name: "opensearch-node2"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: StrongPassword123
     volumes:
       - ./config/opensearch-node2.yml:/usr/share/opensearch/config/opensearch.yml:ro
       - opensearch-data2:/usr/share/opensearch/data

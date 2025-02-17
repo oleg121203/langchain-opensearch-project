@@ -5,6 +5,9 @@ chmod 700 /usr/share/opensearch/config
 chmod 600 /usr/share/opensearch/config/certs/node.pem
 chmod 600 /usr/share/opensearch/config/certs/node-key.pem
 
+# Установка прав доступа для Logstash
+chmod 777 csv_data
+
 # Ждем пока OpenSearch запустится
 until curl -s -k -u admin:Dima1203@ https://localhost:9200/_cluster/health > /dev/null; do
     echo "Ожидание запуска OpenSearch..."
