@@ -25,3 +25,4 @@ pydantic-settings>=2.7.1
 # Тестування
 pytest>=7.0.0
 pytest-asyncio>=0.21.0
+langchain-ollama>=0.0.1

@@ -118,7 +118,9 @@ services:
       - ./logs/logstash:/usr/share/logstash/logs
     environment:
       - "LS_JAVA_OPTS=-Xms512m -Xmx512m"
-      - OPENSEARCH_URL=http://opensearch-node1:9200
+      - OPENSEARCH_URL=https://opensearch-node1:9200
+      - OPENSEARCH_USERNAME=admin
+      - OPENSEARCH_PASSWORD=Dima1203@
       - LANG=uk_UA.UTF-8
       - LC_ALL=uk_UA.UTF-8
     user: "1000:1000"
@@ -140,7 +142,9 @@ services:
     environment:
       - LANG=uk_UA.UTF-8
       - LC_ALL=uk_UA.UTF-8
-      - OPENSEARCH_HOST=http://opensearch-node1:9200
+      - OPENSEARCH_HOST=https://opensearch-node1:9200
+      - OPENSEARCH_USERNAME=admin
+      - OPENSEARCH_PASSWORD=Dima1203@
       - OLLAMA_HOST=http://host.docker.internal:11434
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=DEBUG

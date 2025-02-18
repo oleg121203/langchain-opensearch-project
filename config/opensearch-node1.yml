@@ -7,4 +7,14 @@ plugins.security.disabled: false
 plugins.security.ssl.http.enabled: true
 plugins.security.ssl.transport.enabled: true
 plugins.security.allow_default_init_securityindex: true
+plugins.security.restapi.admin.enabled: true
+plugins.security.nodes_dn:
+  - "CN=node.example.com,OU=SSL,O=Test,L=Test,C=DE"
+
 plugins.query.datasources.encryption.masterkey: "your_master_key_here"
+
+# Audit settings
+plugins.security.audit.type: internal_opensearch
+plugins.security.authcz.admin_dn:
+  - "CN=node.example.com,OU=SSL,O=Test,L=Test,C=DE"
+  - "CN=admin,OU=SSL,O=Test,L=Test,C=DE"
